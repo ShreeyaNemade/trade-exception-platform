@@ -10,11 +10,65 @@ server:
   port: ${SERVER_PORT:8080}
 
 app:
+  audit:
+    max-page-size: ${AUDIT_MAX_PAGE_SIZE:100}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  security:
+    token-secret: ${APP_AUTH_SECRET:}
+    token-ttl-seconds: ${APP_AUTH_TOKEN_TTL_SECONDS:3600}
+    admin:
+      username: ${APP_SECURITY_ADMIN_USER:admin}
+      password: ${APP_SECURITY_ADMIN_PASSWORD:}
+    operations:
+      username: ${APP_SECURITY_OPS_USER:operations}
+      password: ${APP_SECURITY_OPS_PASSWORD:}
+    viewer:
+      username: ${APP_SECURITY_VIEWER_USER:viewer}
+      password: ${APP_SECURITY_VIEWER_PASSWORD:}
+  kafka:
+    consumer-group-id: ${KAFKA_CONSUMER_GROUP_ID:trade-ingestion-group}
+    enrichment-consumer-group-id: ${KAFKA_ENRICHMENT_CONSUMER_GROUP_ID:trade-enrichment-group}
+    stp-consumer-group-id: ${KAFKA_STP_CONSUMER_GROUP_ID:stp-validation-group}
+    confirmation-consumer-group-id: ${KAFKA_CONFIRMATION_CONSUMER_GROUP_ID:confirmation-generation-group}
+    classification-consumer-group-id: ${KAFKA_CLASSIFICATION_CONSUMER_GROUP_ID:exception-classification-group}
+    workitem-consumer-group-id: ${KAFKA_WORKITEM_CONSUMER_GROUP_ID:workitem-management-group}
+    dlq-consumer-group-id: ${KAFKA_DLQ_CONSUMER_GROUP_ID:dlq-persistence-group}
+    partitions: ${KAFKA_TOPIC_PARTITIONS:3}
+    replicas: ${KAFKA_TOPIC_REPLICAS:1}
+    topics:
+      trade-raw: ${KAFKA_TOPIC_TRADE_RAW:trade.raw}
+      trade-accepted: ${KAFKA_TOPIC_TRADE_ACCEPTED:trade.accepted}
+      trade-enriched: ${KAFKA_TOPIC_TRADE_ENRICHED:trade.enriched}
+      stp-validated: ${KAFKA_TOPIC_STP_VALIDATED:stp.validated}
+      confirmation-generated: ${KAFKA_TOPIC_CONFIRMATION_GENERATED:confirmation.generated}
+      exception-created: ${KAFKA_TOPIC_EXCEPTION_CREATED:exception.created}
+      exception-classified: ${KAFKA_TOPIC_EXCEPTION_CLASSIFIED:exception.classified}
+      workitem-linked: ${KAFKA_TOPIC_WORKITEM_LINKED:workitem.linked}
+      manual-review-required: ${KAFKA_TOPIC_MANUAL_REVIEW_REQUIRED:manual.review.required}
+      deadletter-trade: ${KAFKA_TOPIC_DEADLETTER_TRADE:deadletter.trade}
+    retry:
+      max-attempts: ${KAFKA_RETRY_MAX_ATTEMPTS:3}
+      backoff-ms: ${KAFKA_RETRY_BACKOFF_MS:500}
+  reference-data:
+    auto-seed: ${REFERENCE_DATA_AUTO_SEED:true}
+    fail-fast: ${REFERENCE_DATA_SEED_FAIL_FAST:false}
   couchdb:
     url: ${COUCHDB_URL:http://localhost:5984}
-    database: ${COUCHDB_DATABASE:trade_exceptions}
     username: ${COUCHDB_USER:}
     password: ${COUCHDB_PASSWORD:}
+    connect-timeout-ms: ${COUCHDB_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${COUCHDB_READ_TIMEOUT_MS:10000}
+    auto-initialize: ${COUCHDB_AUTO_INITIALIZE:true}
+    fail-fast-on-init: ${COUCHDB_INIT_FAIL_FAST:false}
+    databases:
+      trades: ${COUCHDB_DB_TRADES:trades}
+      confirmations: ${COUCHDB_DB_CONFIRMATIONS:confirmations}
+      exceptions: ${COUCHDB_DB_EXCEPTIONS:exceptions}
+      work-items: ${COUCHDB_DB_WORK_ITEMS:work-items}
+      audit-events: ${COUCHDB_DB_AUDIT_EVENTS:audit-events}
+      reference-data: ${COUCHDB_DB_REFERENCE_DATA:reference-data}
+      dead-letters: ${COUCHDB_DB_DEAD_LETTERS:dead-letters}
 
 management:
   endpoints:

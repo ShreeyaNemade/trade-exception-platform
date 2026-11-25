@@ -1,5 +1,5 @@
 /**
- * Replay and Dead Letter Queue: reprocessing of failed events.
- * Placeholder for a future phase; no behaviour implemented yet.
+ * Replay and Dead Letter Queue: dead-letter record contracts and publishing to
+ * {@code deadletter.trade} (replay workflows will be added in a later phase).
  */
 package com.tradeexception.platform.replay;

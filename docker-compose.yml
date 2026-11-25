@@ -38,6 +38,7 @@ services:
     volumes:
       - couchdb-data:/opt/couchdb/data
       - couchdb-config:/opt/couchdb/etc/local.d
+      - ./infrastructure/docker/couchdb/10-single-node.ini:/opt/couchdb/etc/local.d/10-single-node.ini
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:5984/_up || exit 1"]
       interval: 15s
@@ -53,9 +54,18 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       COUCHDB_URL: http://couchdb:5984
-      COUCHDB_DATABASE: ${COUCHDB_DATABASE:-trade_exceptions}
       COUCHDB_USER: ${COUCHDB_USER}
       COUCHDB_PASSWORD: ${COUCHDB_PASSWORD}
+      COUCHDB_AUTO_INITIALIZE: ${COUCHDB_AUTO_INITIALIZE:-true}
+      COUCHDB_INIT_FAIL_FAST: ${COUCHDB_INIT_FAIL_FAST:-true}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      APP_AUTH_SECRET: ${APP_AUTH_SECRET:-}
+      APP_SECURITY_ADMIN_USER: ${APP_SECURITY_ADMIN_USER:-admin}
+      APP_SECURITY_ADMIN_PASSWORD: ${APP_SECURITY_ADMIN_PASSWORD:-}
+      APP_SECURITY_OPS_USER: ${APP_SECURITY_OPS_USER:-operations}
+      APP_SECURITY_OPS_PASSWORD: ${APP_SECURITY_OPS_PASSWORD:-}
+      APP_SECURITY_VIEWER_USER: ${APP_SECURITY_VIEWER_USER:-viewer}
+      APP_SECURITY_VIEWER_PASSWORD: ${APP_SECURITY_VIEWER_PASSWORD:-}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     depends_on:

@@ -1,5 +1,5 @@
 /**
- * Trade Enrichment: adds reference data to trades.
- * Placeholder for a future phase; no behaviour implemented yet.
+ * Trade Enrichment: synthetic reference data seeding and enrichment of accepted trades with
+ * field-level provenance ({@code SUPPLIED}, {@code DERIVED}, {@code DEFAULTED}).
  */
 package com.tradeexception.platform.enrichment;

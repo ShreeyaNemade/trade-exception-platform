@@ -1,34 +1,30 @@
 # System Architecture
 
-> Describes target design. In Phase 1 only the skeleton exists (see "Current state").
+> **Current State (Phase 5):** Full backend event-driven workflow is implemented — Trade Ingestion, Reference Data Seeding, Trade Enrichment, STP Validation, Confirmation Generation, Exception Classification, Work Item Management, Append-Only Audit Trail, and Dead-Letter Handling. REST operational query/remediation APIs and Frontend dashboard integration remain for Phase 6.
 
-## High-level architecture
+## End-to-End Event-Driven Architecture
 ```mermaid
 flowchart LR
-  UI[React dashboard] -->|REST| API[Spring Boot modular monolith]
-  API -->|publish/consume| K[(Kafka KRaft)]
-  API -->|documents| C[(CouchDB)]
+  P[SyntheticTradeProducer] -->|trade.raw| ING[Trade Ingestion]
+  ING -->|trade.accepted| ENR[Trade Enrichment]
+  ENR -->|trade.enriched| STP[STP Validation Engine]
+  STP -->|STP_ELIGIBLE: stp.validated| CNF[Confirmation Generation]
+  CNF -->|confirmation.generated| OUT1[Confirmed Trades]
+  STP -->|STP_REJECTED / MANUAL_REVIEW: exception.created| CLS[Exception Classification]
+  CLS -->|exception.classified| WI[Work Item Management]
+  WI -->|workitem.linked| OUT2[Remediation Queue]
+  STP -->|MANUAL_REVIEW_REQUIRED| MR[manual.review.required]
+  ING & ENR & STP & CNF & CLS & WI -->|documents & audit| C[(Apache CouchDB)]
+  ING & ENR & STP & CNF & CLS & WI -.->|malformed / infra retry exhausted| DLQ[deadletter.trade]
 ```
 
-## Backend responsibilities
-Ten modules, each its own package: Trade Ingestion, Trade Management, Trade Enrichment, STP Validation, Confirmation Management, Exception Management, Exception Classification, Work Item Management, Audit Management, Replay & DLQ. Layering inside a module: `api` (controllers) → `service` (business logic) → `repository`/`messaging` (infrastructure). Business logic never depends on controllers or Kafka/CouchDB classes directly.
+## Implemented Backend Modules (Phases 1–5)
 
-Cross-cutting (`common`): `ApiResponse` envelope and `GlobalExceptionHandler`.
-
-## Frontend responsibilities
-Presentation of trades, exceptions, manual review, work items and audit trail; remediation actions; dashboards. Talks to the backend REST API only.
-
-## Kafka responsibilities
-Asynchronous, decoupled stage-to-stage communication, ordering per trade (keyed by tradeId), retry and dead-letter routing. See [kafka-event-design.md](kafka-event-design.md).
-
-## CouchDB responsibilities
-Document persistence for trades, confirmations, exceptions, work items, audit events and reference data. See [database-design.md](database-design.md).
-
-## Event-driven processing overview (planned)
-raw trade → accepted → enriched → STP validated → confirmation generated, **or** exception created → classified → work item linked / manual review. Failures go to `deadletter.trade`.
-
-## Component interactions
-Modules interact only through Kafka events and published module APIs; each stage emits an audit event.
-
-## Current state (Phase 1)
-Implemented: Spring Boot app, health endpoint, Actuator, exception handler, response envelope, React shell with placeholder pages, Docker Compose. Not implemented: everything else above.
+1. **Trade Ingestion (`ingestion`)**: consumes `trade.raw`, validates envelope & `Trade`, persists `ACCEPTED`, records `TRADE_ACCEPTED`, publishes `trade.accepted`.
+2. **Reference Data & Trade Enrichment (`enrichment`)**: idempotently seeds synthetic reference data; consumes `trade.accepted`, enriches with field-level provenance (`SUPPLIED`/`DERIVED`/`DEFAULTED`), publishes `trade.enriched`.
+3. **STP Validation Engine (`stp`)**: evaluates 8 modular deterministic `StpValidationRule`s into `STP_ELIGIBLE`, `STP_REJECTED`, or `MANUAL_REVIEW_REQUIRED`; routes to `stp.validated` or persists initial `ExceptionRecord` and publishes `exception.created` (+ `manual.review.required`).
+4. **Confirmation Generation (`confirmation`)**: consumes `stp.validated`, loads `Trade` + counterparty/product/template reference data, renders a readable non-legally-binding HTML confirmation via `ConfirmationTemplateRenderer`, persists `Confirmation` (`CNF-<tradeId>`), transitions `Trade` to `CONFIRMED`, records `CONFIRMATION_GENERATED`, and publishes `confirmation.generated`. Missing templates route to `exception.created`.
+5. **Exception Classification (`classification`)**: consumes `exception.created`, applies deterministic rule-based classification (`ExceptionClassifier`) to assign category, root cause, priority, severity, explanation, and remediation action, updates `ExceptionRecord` while preserving original fields, records `EXCEPTION_CLASSIFIED`, and publishes `exception.classified`.
+6. **Work Item Management (`workitem`)**: consumes `exception.classified`, creates deterministic `WorkItem` (`WI-<exceptionId>`), routes to synthetic operational teams (`TRADE_OPERATIONS`, `COUNTERPARTY_OPERATIONS`, `PRODUCT_CONTROL`, `CONFIRMATION_OPERATIONS`), sets priority-based SLA due dates, publishes `workitem.linked`, and enforces audited lifecycle transitions (`OPEN` → `IN_PROGRESS` / `PENDING` → `RESOLVED` → `CLOSED`).
+7. **Audit Management (`audit`)**: append-only `AuditEventRepository` capturing entity-scoped events across all stages.
+8. **Dead-Letter Handling (`replay`)**: routes malformed payloads and retry-exhausted technical failures to `deadletter.trade` with diagnostic headers.
